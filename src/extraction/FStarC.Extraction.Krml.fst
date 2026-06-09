@@ -89,6 +89,8 @@ and flag =
   | Macro
   | Deprecated of string
   | CNoInline
+  | Target of string
+  | Section of string
 
 and fsdoc = string
 
@@ -263,6 +265,8 @@ instance pretty_flag = { pp = function
   | Macro -> doc_of_string "Macro"
   | Deprecated s -> ctor "Deprecated" [pp s]
   | CNoInline -> doc_of_string "CNoInline"
+  | Target s -> ctor "Target" [pp s]
+  | Section s -> ctor "Section" [pp s]
 }
 
 let spaced a = break_ 1 ^^ a ^^ break_ 1
@@ -544,6 +548,7 @@ let translate_flags flags =
     | Syntax.CIfDef -> Some IfDef
     | Syntax.CMacro -> Some Macro
     | Syntax.Deprecated s -> Some (Deprecated s)
+    | Syntax.CSection s -> Some (Section s)
     | _ -> None // is this all of them?
   ) flags
 

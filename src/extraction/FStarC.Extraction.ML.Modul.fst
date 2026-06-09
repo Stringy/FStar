@@ -150,6 +150,7 @@ let rec extract_meta x : ML (option meta) =
       | "FStar.Attributes.CEpilogue" -> Some (CEpilogue s)
       | "FStar.Attributes.CConst" -> Some (CConst s)
       | "FStar.Attributes.CCConv" -> Some (CCConv s)
+      | "FStar.Attributes.CSection" -> Some (CSection s)
       | "Prims.deprecated" -> Some (Deprecated s)
       | _ -> None
       end

@@ -106,6 +106,7 @@ type meta =
   | RemoveUnusedTypeParameters of list int & FStarC.Range.t //positional
   | HasValDecl of FStarC.Range.t //this symbol appears in the interface of a module
   | CNoInline
+  | CSection of string
 
 // rename
 type metadata = list meta

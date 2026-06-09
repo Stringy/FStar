@@ -173,10 +173,6 @@ let bpf_translate_expr : translate_expr_t = fun env e ->
      | [ptr; flags] -> bpf_call "bpf_ringbuf_discard" [cb ptr; cb flags]
      | _ -> raise NotSupportedByKrmlExtension)
 
-  (* --- Program attributes (compile-time only) --- *)
-  else if name = "BPFStar.Program.bpf_section" then EUnit
-  else if name = "BPFStar.Program.bpf_license" then EUnit
-
   else raise NotSupportedByKrmlExtension
 
 (* Register hooks *)
