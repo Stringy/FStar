@@ -5,7 +5,7 @@ OUTPUT_DIR := build/$(TAG).ml
 CODEGEN := PluginNoLib
 ROOTS := $(shell find $(SRC) -name '*.fst' -o -name '*.fsti')
 FSTAR_OPTIONS += --with_fstarc
-EXTRACT += --extract '-*,+ExtractPulse,+ExtractPulseC,+ExtractPulseOCaml'
+EXTRACT += --extract '-*,+ExtractPulse,+ExtractPulseC,+ExtractPulseOCaml,+ExtractPulseBPF'
 FSTAR_OPTIONS += --lax
 
 DEPFLAGS += --already_cached 'Prims,FStarC'
