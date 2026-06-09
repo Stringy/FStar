@@ -173,6 +173,40 @@ let bpf_translate_expr : translate_expr_t = fun env e ->
      | [ptr; flags] -> bpf_call "bpf_ringbuf_discard" [cb ptr; cb flags]
      | _ -> raise NotSupportedByKrmlExtension)
 
+  (* map_update: map, key, value, flags -> stack-allocate key+value *)
+  else if name = "BPFStar.Map.map_update" then
+    (match args with
+     | [m; k; v; flags] ->
+       ELet (
+         { name = "__bpfstar_key"; typ = TAny; mut = true; meta = [] },
+         cb k,
+         ELet (
+           { name = "__bpfstar_val"; typ = TAny; mut = true; meta = [] },
+           cb v,
+           bpf_call "bpf_map_update_elem" [
+             EAddrOf (cb m);
+             EAddrOf (EBound 1);
+             EAddrOf (EBound 0);
+             cb flags
+           ]
+         )
+       )
+     | _ -> raise NotSupportedByKrmlExtension)
+
+  (* map_delete: map, key -> stack-allocate key *)
+  else if name = "BPFStar.Map.map_delete" then
+    (match args with
+     | [m; k] ->
+       ELet (
+         { name = "__bpfstar_key"; typ = TAny; mut = true; meta = [] },
+         cb k,
+         bpf_call "bpf_map_delete_elem" [
+           EAddrOf (cb m);
+           EAddrOf (EBound 0)
+         ]
+       )
+     | _ -> raise NotSupportedByKrmlExtension)
+
   (* --- Map/RingBuf constructors ---
      These are used in global definitions. The actual C definition
      is emitted by the let-binding hook via Prologue+Verbatim. *)
@@ -198,7 +232,10 @@ let c_type_name (t: mlty) : ML string =
     else if s = "FStar.Int16.t" then "s16"
     else if s = "FStar.Int32.t" then "s32"
     else if s = "FStar.Int64.t" then "s64"
-    else s
+    else
+      (* Use just the type name without module prefix, matching -no-prefix *)
+      let (_, short_name) = p in
+      short_name
   | _ -> "void"
 
 (* Generate BTF struct definition for a BPF map *)
