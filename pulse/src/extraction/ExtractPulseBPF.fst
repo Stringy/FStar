@@ -173,9 +173,110 @@ let bpf_translate_expr : translate_expr_t = fun env e ->
      | [ptr; flags] -> bpf_call "bpf_ringbuf_discard" [cb ptr; cb flags]
      | _ -> raise NotSupportedByKrmlExtension)
 
+  (* --- Map/RingBuf constructors ---
+     These are used in global definitions. The actual C definition
+     is emitted by the let-binding hook via Prologue+Verbatim. *)
+  else if name = "BPFStar.Map.define_hash_map" then EUnit
+  else if name = "BPFStar.Map.define_array_map" then EUnit
+  else if name = "BPFStar.Map.define_lru_hash_map" then EUnit
+  else if name = "BPFStar.Map.define_percpu_array_map" then EUnit
+  else if name = "BPFStar.RingBuf.define_ringbuf" then EUnit
+
   else raise NotSupportedByKrmlExtension
+
+(* --- Map type name mapping ---
+   Maps Pulse type names to C type names for BTF __type() macros. *)
+let c_type_name (t: mlty) : ML string =
+  match t with
+  | MLTY_Named ([], p) ->
+    let s = string_of_mlpath p in
+    if s = "FStar.UInt8.t" then "u8"
+    else if s = "FStar.UInt16.t" then "u16"
+    else if s = "FStar.UInt32.t" then "u32"
+    else if s = "FStar.UInt64.t" then "u64"
+    else if s = "FStar.Int8.t" then "s8"
+    else if s = "FStar.Int16.t" then "s16"
+    else if s = "FStar.Int32.t" then "s32"
+    else if s = "FStar.Int64.t" then "s64"
+    else s
+  | _ -> "void"
+
+(* Generate BTF struct definition for a BPF map *)
+let map_definition (map_type: string) (name: string)
+    (key_type: string) (value_type: string) (max_entries: string) : string =
+  "struct {\n" ^
+  "  __uint(type, " ^ map_type ^ ");\n" ^
+  "  __uint(max_entries, " ^ max_entries ^ ");\n" ^
+  "  __type(key, " ^ key_type ^ ");\n" ^
+  "  __type(value, " ^ value_type ^ ");\n" ^
+  "} " ^ name ^ " SEC(\".maps\");\n"
+
+(* Generate BTF struct definition for a BPF ring buffer *)
+let ringbuf_definition (name: string) (size: string) : string =
+  "struct {\n" ^
+  "  __uint(type, BPF_MAP_TYPE_RINGBUF);\n" ^
+  "  __uint(max_entries, " ^ size ^ ");\n" ^
+  "} " ^ name ^ " SEC(\".maps\");\n"
+
+(* Let-binding translation: intercept BPF map/ringbuf definitions *)
+let bpf_translate_let : translate_let_t = fun env flavor lb ->
+  match lb with
+  | { mllb_name = name;
+      mllb_tysc = Some ([], t);
+      mllb_def = def;
+      mllb_meta = meta } ->
+    let (head, args) = collect_args def in
+    (match head with
+     | Some p ->
+       let fn_name = string_of_mlpath p in
+       let qname = env.module_name, name in
+       let flags = translate_flags meta in
+
+       (* define_hash_map #kt #vt max_entries *)
+       if fn_name = "BPFStar.Map.define_hash_map" ||
+          fn_name = "BPFStar.Map.define_array_map" ||
+          fn_name = "BPFStar.Map.define_lru_hash_map" ||
+          fn_name = "BPFStar.Map.define_percpu_array_map" then
+         let map_type =
+           if fn_name = "BPFStar.Map.define_hash_map" then "BPF_MAP_TYPE_HASH"
+           else if fn_name = "BPFStar.Map.define_array_map" then "BPF_MAP_TYPE_ARRAY"
+           else if fn_name = "BPFStar.Map.define_lru_hash_map" then "BPF_MAP_TYPE_LRU_HASH"
+           else "BPF_MAP_TYPE_PERCPU_ARRAY"
+         in
+         (* Extract key and value types from the type annotation *)
+         let (key_t, val_t) = match t with
+           | MLTY_Named ([kt; vt], _) -> (c_type_name kt, c_type_name vt)
+           | _ -> ("void", "void")
+         in
+         (* Extract max_entries from the argument *)
+         let max_entries = match args with
+           | [e] ->
+             (match e.expr with
+              | MLE_Const (MLC_Int (s, _)) -> s
+              | _ -> "0")
+           | _ -> "0"
+         in
+         let prologue = map_definition map_type name key_t val_t max_entries in
+         Some (DGlobal (Verbatim :: Prologue prologue :: flags, qname, 0, TAny, EUnit))
+
+       (* define_ringbuf size *)
+       else if fn_name = "BPFStar.RingBuf.define_ringbuf" then
+         let size = match args with
+           | [e] ->
+             (match e.expr with
+              | MLE_Const (MLC_Int (s, _)) -> s
+              | _ -> "0")
+           | _ -> "0"
+         in
+         let prologue = ringbuf_definition name size in
+         Some (DGlobal (Verbatim :: Prologue prologue :: flags, qname, 0, TAny, EUnit))
+
+       else raise NotSupportedByKrmlExtension
+     | _ -> raise NotSupportedByKrmlExtension)
+  | _ -> raise NotSupportedByKrmlExtension
 
 (* Register hooks *)
 let _ =
   register_pre_translate_type_without_decay bpf_translate_type_without_decay;
-  register_pre_translate_expr bpf_translate_expr
+  register_pre_translate_expr bpf_translate_expr;
+  register_pre_translate_let bpf_translate_let

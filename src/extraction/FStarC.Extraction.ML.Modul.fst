@@ -139,6 +139,7 @@ let rec extract_meta x : ML (option meta) =
       | "FStar.Attributes.CAbstractStruct" -> Some CAbstract
       | "FStar.Attributes.CIfDef" -> Some CIfDef
       | "FStar.Attributes.CMacro" -> Some CMacro
+      | "FStar.Attributes.CVerbatim" -> Some CVerbatim
       | "Prims.deprecated" -> Some (Deprecated "")
       | _ -> None
       end

@@ -107,6 +107,7 @@ type meta =
   | HasValDecl of FStarC.Range.t //this symbol appears in the interface of a module
   | CNoInline
   | CSection of string
+  | CVerbatim
 
 // rename
 type metadata = list meta

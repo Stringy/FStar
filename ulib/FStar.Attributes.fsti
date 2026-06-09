@@ -75,6 +75,10 @@ type __internal_ocaml_attributes =
     (* KaRaMeL-only: place the declaration in the named ELF section.
      * Generates __attribute__((section("name"))) in C. Useful for BPF
      * programs where SEC("tp/...") controls the program type. *)
+  | CVerbatim
+    (* KaRaMeL-only: suppress the declaration itself and emit only the
+     * CPrologue/CEpilogue text. Used for declarations whose C form
+     * cannot be expressed through the normal extraction pipeline. *)
 
 (** The [inline_let] attribute on a local let-binding, instructs the
     extraction pipeline to inline the definition. This may be both to
