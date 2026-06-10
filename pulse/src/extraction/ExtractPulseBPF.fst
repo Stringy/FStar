@@ -58,6 +58,10 @@ let bpf_translate_type_without_decay : translate_type_without_decay_t = fun env 
     when string_of_mlpath p = "BPFStar.RingBuf.bpf_ringbuf" ->
     TAny
 
+  | MLTY_Named ([], p)
+    when string_of_mlpath p = "BPFStar.Types.ctx_ptr" ->
+    TAny
+
   | _ -> raise NotSupportedByKrmlExtension
 
 (* Expression translation: BPFStar calls -> Krml AST *)
